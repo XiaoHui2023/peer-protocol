@@ -1,8 +1,10 @@
 import asyncio
 import logging
+from pydantic import BaseModel
 from abc import ABC, abstractmethod
-from typing import Optional, Callable, Awaitable, Any, TypeVar, Generic
+from typing import Optional, Callable, Awaitable, Any, TypeVar, Generic, Union, get_origin, get_args
 from aiohttp import web
+from .callback import Callback
 
 logger = logging.getLogger(__name__)
 T_Connect = TypeVar("T_Connect")
@@ -21,45 +23,49 @@ class Peer(ABC, Generic[T_Connect, T_Disconnect]):
             _runner: 应用运行器
             _stop_event: 停止事件
         """
-        self._on_start: list[Callable[[], Awaitable[None]]] = []
-        self._on_stop: list[Callable[[], Awaitable[None]]] = []
-        self._on_send: list[Callable[[Any], Awaitable[None]]] = []
-        self._on_receive: list[Callable[[Any], Awaitable[None]]] = []
-        self._on_connect: list[Callable[[T_Connect], Awaitable[None]]] = []
-        self._on_disconnect: list[Callable[[T_Disconnect], Awaitable[None]]] = []
+        self._on_start: list[Callback] = []
+        self._on_stop: list[Callback] = []
+        self._on_send: list[Callback] = []
+        self._on_receive: list[Callback] = []
+        self._on_connect: list[Callback] = []
+        self._on_disconnect: list[Callback] = []
         self._runner: Optional[web.AppRunner] = None
         self._stop_event = asyncio.Event()
 
         self._render_callback()
 
-    def on_start(self, callback: Callable[[], Awaitable[None]]) -> None:
+    def on_start(self, fn: Callable[[], Awaitable[None]]) -> None:
         """注册启动回调"""
-        self._on_start.append(callback)
+        self._on_start.append(Callback(fn))
 
-    def on_stop(self, callback: Callable[[], Awaitable[None]]) -> None:
+    def on_stop(self, fn: Callable[[], Awaitable[None]]) -> None:
         """注册停止回调"""
-        self._on_stop.append(callback)
+        self._on_stop.append(Callback(fn))
 
-    def on_send(self, callback: Callable[[Any], Awaitable[None]]) -> None:
+    def on_send(self, fn: Callable[[Any], Awaitable[None]]) -> None:
         """注册发送消息回调"""
-        self._on_send.append(callback)
+        self._on_send.append(Callback(fn,strict=False))
 
-    def on_receive(self, callback: Callable[[Any], Awaitable[None]]) -> None:
+    def on_receive(self, fn: Callable[[Any], Awaitable[None]]) -> None:
         """注册接受消息回调"""
-        self._on_receive.append(callback)
+        self._on_receive.append(Callback(fn,strict=False))
 
-    def on_connect(self, callback: Callable[[T_Connect], Awaitable[None]]) -> None:
+    def on_connect(self, fn: Callable[[T_Connect], Awaitable[None]]) -> None:
         """注册连接成功回调"""
-        self._on_connect.append(callback)
+        self._on_connect.append(Callback(fn))
 
-    def on_disconnect(self, callback: Callable[[T_Disconnect], Awaitable[None]]) -> None:
+    def on_disconnect(self, fn: Callable[[T_Disconnect], Awaitable[None]]) -> None:
         """注册连接断开回调"""
-        self._on_disconnect.append(callback)
+        self._on_disconnect.append(Callback(fn))
 
-    def _callback(self, callbacks: list[Callable[[], Awaitable[None]]], *args: Any, **kwargs: Any) -> None:
+    def _callback(self, callbacks: list[Callback], *args: Any) -> None:
         for callback in callbacks:
             try:
-                asyncio.create_task(callback(*args, **kwargs))
+                coro = callback(*args)
+                if coro is None:
+                    continue
+                if asyncio.iscoroutine(coro):
+                    asyncio.create_task(coro)
             except:
                 logger.exception(f"回调函数执行失败: {callback}")
                 continue
@@ -91,3 +97,11 @@ class Peer(ABC, Generic[T_Connect, T_Disconnect]):
         @self.on_receive
         async def _(payload: Any):
             logger.info(f"接收消息: {payload}")
+
+    def _to_serializable(self, payload: Any) -> Any:
+        """将对象转为 JSON 可序列化格式"""
+        if isinstance(payload, BaseModel):
+            return payload.model_dump()
+        if hasattr(payload, '__dict__') and not isinstance(payload, (dict, list, str, int, float, bool, type(None))):
+            return payload.__dict__  # 或 dataclasses.asdict 等
+        return payload

@@ -170,7 +170,7 @@ class Client(Peer[aiohttp.ClientWebSocketResponse, aiohttp.ClientWebSocketRespon
 
         if self._ws and not self._ws.closed:
             try:
-                await self._ws.send_str(json.dumps(payload, ensure_ascii=False))
+                await self._ws.send_str(json.dumps(self._to_serializable(payload), ensure_ascii=False))
             except Exception:
                 logger.exception("发送消息失败")
 

@@ -81,7 +81,7 @@ class Server(Peer[web.WebSocketResponse, web.WebSocketResponse]):
         dead: set[web.WebSocketResponse] = set()
         for ws in self._clients:
             try:
-                await ws.send_str(json.dumps(payload, ensure_ascii=False))
+                await ws.send_str(json.dumps(self._to_serializable(payload), ensure_ascii=False))
             except Exception:
                 dead.add(ws)
         for ws in dead:
