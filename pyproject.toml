@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "onebot-protocol"
+version = "0.0.1"
+description = "OneBot 通信协议，定义消息收发的公共数据结构"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = [
+    "aiohttp>=3.9",
+]
+
+[project.urls]
+Repository = "https://github.com/XiaoHui2023/onebot-protocol"
+
+[tool.hatch.build.targets.wheel]
+packages = ["onebot_protocol"]
