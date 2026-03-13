@@ -125,11 +125,11 @@ class Server(Peer[web.WebSocketResponse, web.WebSocketResponse]):
 
         @self.on_start
         async def _():
-            logger.info(f"服务端已启动: {self.host}:{self.port}")
+            logger.info(f"服务端已启动: http://{self.host}:{self.port}/ws")
 
         @self.on_stop
         async def _():
-            logger.info(f"服务端已停止: {self.host}:{self.port}")
+            logger.info(f"服务端已停止")
 
         @self.on_connect
         async def _(ws: web.WebSocketResponse):
