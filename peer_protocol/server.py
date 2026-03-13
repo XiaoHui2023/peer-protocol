@@ -72,6 +72,9 @@ class Server(Peer[web.WebSocketResponse, web.WebSocketResponse]):
 
     async def broadcast(self, payload: Any) -> None:
         """将消息广播给所有客户端 """
+        if payload is None:
+            return
+            
         if not self._clients:
             logger.warning("没有已连接的 WebSocket 客户端，无法转发消息")
             return

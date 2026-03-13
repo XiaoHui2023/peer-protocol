@@ -166,6 +166,9 @@ class Client(Peer[aiohttp.ClientWebSocketResponse, aiohttp.ClientWebSocketRespon
 
     async def send(self, payload: Any):
         """发送消息"""
+        if payload is None:
+            return
+
         self._callback(self._on_send, payload)
 
         if self._ws and not self._ws.closed:
